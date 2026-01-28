@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Synthesize Bio Logo" width="400"/>
+</p>
+
 # GEM Model
 
 This repository provides a focused implementation of the GEM model as a standard Python package.

@@ -95,7 +95,7 @@ class GEM(nn.Module):
         pert_dim: int = 8,
         hidden_dim: int = 128,
         beta: float = 1.0,
-        n_pff: int = 2,
+        n_pff: int = 1,
         expansion_factor: int = 2,
         pff_dropout: float = 0.0,
     ):
@@ -200,6 +200,7 @@ class GEM(nn.Module):
         return self.decoder(z_concat)
 
     def forward(self, counts: torch.Tensor, metadata: Dict[str, torch.Tensor]):
+        metadata = {k: v.to(counts.device) for k, v in metadata.items()}
         x = log_cpm(counts)
         x = self.input_norm(x)
 
@@ -243,6 +244,8 @@ class GEM(nn.Module):
         sample: bool = True,
         total_counts: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        device = self.log_variance.device
+        metadata = {k: v.to(device) for k, v in metadata.items()}
         metadata_encoding = self.metadata_encoder(metadata)
         p_stats = self.prior(metadata_encoding)
         z = {}
@@ -264,6 +267,8 @@ class GEM(nn.Module):
                 1_000_000.0,
                 device=x_sample.device,
             )
+        else:
+            total_counts = total_counts.to(x_sample.device)
 
         return log_cpm_inverse(x_sample, total_cts=total_counts).round().clamp_min(0.0)
 
@@ -343,7 +348,7 @@ class TrainConfig:
     pert_dim: int = 8
     hidden_dim: int = 128
     beta: float = 1.0
-    n_pff: int = 2
+    n_pff: int = 1
     expansion_factor: int = 2
     pff_dropout: float = 0.0
     batch_size: int = 64

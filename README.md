@@ -1,6 +1,6 @@
-# GEM Model (Single-File)
+# GEM Model
 
-This repository is trimmed down to a single-file implementation of the GEM model for quick iteration and experimentation, organized as a standard Python package.
+This repository provides a focused implementation of the GEM model as a standard Python package.
 
 ## What’s Included
 

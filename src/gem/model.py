@@ -272,6 +272,47 @@ class GEM(nn.Module):
 
         return log_cpm_inverse(x_sample, total_cts=total_counts).round().clamp_min(0.0)
 
+    @torch.no_grad()
+    def generate_from_reference(
+        self,
+        reference_counts: torch.Tensor,
+        metadata: Dict[str, torch.Tensor],
+        conditioning: Tuple[str, ...] = ("technical", "biological"),
+        sample: bool = True,
+        total_counts: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        device = self.log_variance.device
+        reference_counts = reference_counts.to(device)
+        metadata = {k: v.to(device) for k, v in metadata.items()}
+
+        x_ref = self.input_norm(log_cpm(reference_counts))
+        q_stats = self.encode(x_ref)
+        p_stats = self.prior(self.metadata_encoder(metadata))
+
+        z = {}
+        for group in self.latent_groups:
+            if group in conditioning:
+                mean = q_stats[group]["mean"]
+                logvar = q_stats[group]["logvar"]
+            else:
+                mean = p_stats[group]["mean"]
+                logvar = p_stats[group]["logvar"]
+            z[group] = self._rsample(mean, logvar) if sample else mean
+
+        z_concat = torch.cat([z[group] for group in self.latent_groups], dim=1)
+        x_mean = self.decode(z_concat)
+        recon_dist = dist.Normal(
+            loc=x_mean, scale=torch.exp(0.5 * self.log_variance)
+        )
+        x_sample = recon_dist.sample() if sample else x_mean
+
+        if total_counts is None:
+            total_counts = reference_counts.sum(dim=1, keepdim=True).clamp_min(1.0)
+        else:
+            total_counts = total_counts.to(device)
+
+        return log_cpm_inverse(x_sample, total_cts=total_counts).round().clamp_min(0.0)
+
 
 # ---------------------------
 # Mock dataset

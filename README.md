@@ -39,6 +39,53 @@ Warning: the dataset is random and has no true structure to learn, so reconstruc
 - The decoder outputs a Normal distribution in log-CPM space.
 - `TrainConfig` in `src/gem/model.py` controls model and dataset sizes.
 
+## Architecture (Pseudocode)
+
+```text
+# Inputs
+expression: raw counts (batch x genes)
+metadata: structured covariates (batch)
+
+# --- Prediction / Generation from metadata (prior) ---
+metadata_encoding = EncodeMetadata(metadata)
+for group in {technical, biological, perturbation}:
+    prior_params[group] = MLP_predict[group](metadata_encoding[group])
+    z_prior[group] = sample_or_mean(Normal(prior_params[group]))
+
+if reference_expression provided:
+    # optional anchoring to observed data
+    ref_q = Encoder(log_cpm(reference_expression))
+    z_prior[group in conditioning] = sample_or_mean(ref_q[group])
+
+z_concat = concat(z_prior[technical], z_prior[biological], z_prior[perturbation])
+decoded = Decoder(z_concat)
+px = Normal(mean=decoded, variance=learned)
+counts_pred = log_cpm_inverse(sample_or_mean(px), total_counts)
+
+# --- Reconstruction / VAE path (used in training) ---
+x = log_cpm(expression)
+encoder_out = Encoder(x)
+for group in {technical, biological, perturbation}:
+    q_params[group] = split(encoder_out)
+    z_post[group] = rsample_or_mean(Normal(q_params[group]))
+
+z_concat = concat(z_post[technical], z_post[biological], z_post[perturbation])
+decoded = Decoder(z_concat)
+px = Normal(mean=decoded, variance=learned)
+counts_recon = log_cpm_inverse(sample_or_mean(px), total_counts)
+
+# --- Auxiliary heads (train-time signals) ---
+for group in {biological, perturbation}:
+    for label_head in classifiers[group]:
+        probs[label_head] = softmax(Classifier[group][label_head](z_post[group]))
+
+# Training uses:
+# - reconstruction likelihood from px
+# - KL(q(z|x) || p(z|metadata)) per group
+# - classifier losses on intended latent groups
+# - (optional) adversarial / disentanglement losses if wired elsewhere
+```
+
 ## Citation
 
 If you use GEM or this toolkit in your research, please cite the preprint:

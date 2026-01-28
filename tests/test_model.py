@@ -70,3 +70,31 @@ def test_generate_from_metadata_shape_and_device():
         counts_gpu = model.generate_from_metadata(metadata, sample=False, total_counts=total_counts)
         assert counts_gpu.is_cuda
         assert counts_gpu.shape == (4, n_genes)
+
+
+def test_generate_from_reference_shape():
+    n_genes = 10
+    n_technical, n_biological, n_perturbation = 3, 4, 2
+    model = _make_model(
+        n_genes=n_genes,
+        n_technical=n_technical,
+        n_biological=n_biological,
+        n_perturbation=n_perturbation,
+    )
+
+    counts, metadata = _make_batch(
+        batch_size=5,
+        n_genes=n_genes,
+        n_technical=n_technical,
+        n_biological=n_biological,
+        n_perturbation=n_perturbation,
+    )
+
+    out = model.generate_from_reference(
+        reference_counts=counts,
+        metadata=metadata,
+        sample=False,
+    )
+
+    assert out.shape == (5, n_genes)
+    assert torch.all(out >= 0)

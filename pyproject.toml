@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gem-model"
+version = "0.1.0"
+description = "Single-file GEM model for fast iteration."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "GEM Contributors" }]
+dependencies = [
+    "torch==2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.2.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["gem*"]
